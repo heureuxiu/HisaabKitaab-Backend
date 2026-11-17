@@ -28,7 +28,19 @@ function createMemoryStore() {
     async updateUser(id, patch) {
       const u = users.get(id);
       if (!u) return false;
+      if (patch.email && [...users.values()].some((x) => x.id !== id && x.email === patch.email)) {
+        const e = new Error('duplicate'); e.code = 'DUPLICATE'; throw e;
+      }
       for (const [k, v] of Object.entries(patch)) { if (v === undefined) delete u[k]; else u[k] = v; }
+      return true;
+    },
+
+    // Removes the account and everything that belongs to it.
+    async deleteUser(id) {
+      if (!users.delete(id)) return false;
+      rows.entries = rows.entries.filter((r) => r.userId !== id);
+      rows.moves = rows.moves.filter((r) => r.userId !== id);
+      for (const k of [...budgets.keys()]) if (k.startsWith(`${id}|`)) budgets.delete(k);
       return true;
     },
 

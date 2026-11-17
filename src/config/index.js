@@ -8,7 +8,7 @@ const config = {
   jwtSecret: env.JWT_SECRET,
   googleClientIds: String(env.GOOGLE_CLIENT_IDS || '').split(',').map((x) => x.trim()).filter(Boolean),
   resendApiKey: env.RESEND_API_KEY || '',
-  mailFrom: env.MAIL_FROM || 'Hisaab Kitaab <onboarding@resend.dev>',
+  mailFrom: env.MAIL_FROM || 'Ledgero <onboarding@resend.dev>',
 };
 
 /** Returns a list of problems that stop the server from starting (empty when all is well). */

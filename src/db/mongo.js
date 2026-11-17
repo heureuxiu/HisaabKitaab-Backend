@@ -49,8 +49,22 @@ async function connectMongo(uri, dbName = 'hisaab') {
       const upd = {};
       if (Object.keys($set).length) upd.$set = $set;
       if (Object.keys($unset).length) upd.$unset = $unset;
-      const r = await users.updateOne({ _id }, upd);
-      return r.matchedCount > 0;
+      try {
+        const r = await users.updateOne({ _id }, upd);
+        return r.matchedCount > 0;
+      } catch (e) {
+        if (e && e.code === 11000) { const err = new Error('duplicate'); err.code = 'DUPLICATE'; throw err; }
+        throw e;
+      }
+    },
+    // Removes the account and everything that belongs to it.
+    async deleteUser(id) {
+      const _id = oid(id);
+      if (!_id) return false;
+      const r = await users.deleteOne({ _id });
+      if (!r.deletedCount) return false;
+      await Promise.all([entries.deleteMany({ userId: id }), budgets.deleteMany({ userId: id }), moves.deleteMany({ userId: id })]);
+      return true;
     },
 
     async listEntries(userId, month) {

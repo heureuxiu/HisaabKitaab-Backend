@@ -1,4 +1,4 @@
-# Hisaab Kitaab backend
+# Ledgero backend
 
 Express + MongoDB. Every user has their own account and their own data.
 

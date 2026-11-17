@@ -9,7 +9,7 @@ const vaultRoutes = require('./vault.routes');
 
 function createRoutes(store, { secret, requireAuth, verifyGoogle, sendMail }) {
   const root = Router();
-  root.get('/health', (_req, res) => res.json({ ok: true, name: 'hisaab-kitaab' }));
+  root.get('/health', (_req, res) => res.json({ ok: true, name: 'ledgero' }));
   root.get('/api/ping', (_req, res) => res.json({ ok: true }));
   root.use('/auth', createAuthRouter(store, { secret, requireAuth, verifyGoogle, sendMail }));
 

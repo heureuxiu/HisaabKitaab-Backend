@@ -73,7 +73,7 @@ function createAuthRouter(store, { secret, requireAuth, verifyGoogle, sendMail }
       const code = String(crypto.randomInt(100000, 1000000));
       await store.updateUser(user.id, { resetHash: resetCodeHash(secret, email, code), resetExp: Date.now() + 15 * 60 * 1000, resetTries: 0 });
       try {
-        await sendMail({ to: email, subject: 'Your Hisaab Kitaab reset code', text: `Your password reset code is ${code}. It works for 15 minutes. If you did not ask for it, ignore this email.` });
+        await sendMail({ to: email, subject: 'Your Ledgero reset code', text: `Your password reset code is ${code}. It works for 15 minutes. If you did not ask for it, ignore this email.` });
       } catch (e) { console.error('Could not send reset email:', e.message); }
     }
     res.json({ ok: true });
@@ -117,6 +117,27 @@ function createAuthRouter(store, { secret, requireAuth, verifyGoogle, sendMail }
     }
     if (user.googleId !== g.sub) await store.updateUser(user.id, { googleId: g.sub });
     res.status(created ? 201 : 200).json(session(user));
+  }));
+
+  // A guest adds an email and password to the same account, so nothing they entered is lost.
+  router.post('/upgrade', requireAuth, wrap(async (req, res) => {
+    if (!req.user.guest) throw httpError(400, 'This account already has an email');
+    if (!signupLimit(ip(req))) throw httpError(429, 'Too many attempts. Try again later.');
+    const { email, password, name } = parseCreds(req.body, { needName: true });
+    if (await store.getUserByEmail(email)) throw httpError(409, 'An account with this email already exists');
+    try {
+      await store.updateUser(req.user.id, { email, name, passHash: await hashPassword(password), guest: false });
+    } catch (e) {
+      if (e.code === 'DUPLICATE') throw httpError(409, 'An account with this email already exists');
+      throw e;
+    }
+    res.json(session(await store.getUserById(req.user.id)));
+  }));
+
+  // Deletes the account and all of its data for good. The app asks the person to type DELETE first.
+  router.delete('/me', requireAuth, wrap(async (req, res) => {
+    await store.deleteUser(req.user.id);
+    res.json({ ok: true });
   }));
 
   router.get('/me', requireAuth, (req, res) => res.json({ user: publicUser(req.user) }));

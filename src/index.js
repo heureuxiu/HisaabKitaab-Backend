@@ -13,7 +13,7 @@ if (bad.length) fail(bad.join('\n'));
   const app = createApp(store, { secret: config.jwtSecret });
 
   const server = app.listen(config.port, '0.0.0.0', () => {
-    console.log(`Hisaab Kitaab API running on port ${config.port} (MongoDB connected)`);
+    console.log(`Ledgero API running on port ${config.port} (MongoDB connected)`);
     for (const list of Object.values(os.networkInterfaces())) {
       for (const i of list ?? []) {
         if (i.family === 'IPv4' && !i.internal) console.log(`  Phone URL:  http://${i.address}:${config.port}`);
