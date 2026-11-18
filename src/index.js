@@ -10,7 +10,7 @@ if (bad.length) fail(bad.join('\n'));
 (async () => {
   const { connectMongo } = require('./db/mongo');
   const store = await connectMongo(config.mongoUri, config.mongoDb);
-  const app = createApp(store, { secret: config.jwtSecret });
+  const app = createApp(store);
 
   const server = app.listen(config.port, '0.0.0.0', () => {
     console.log(`Ledgero API running on port ${config.port} (MongoDB connected)`);

@@ -4,7 +4,7 @@
 const { MongoClient, ObjectId } = require('mongodb');
 
 const oid = (id) => (typeof id === 'string' && ObjectId.isValid(id) && String(new ObjectId(id)) === id ? new ObjectId(id) : null);
-const asUser = (d) => (d ? { id: String(d._id), email: d.email ?? null, name: d.name || '', passHash: d.passHash ?? null, guest: !!d.guest, savingsTarget: d.savingsTarget || 0, googleId: d.googleId ?? null, resetHash: d.resetHash ?? null, resetExp: d.resetExp ?? 0, resetTries: d.resetTries || 0 } : null);
+const asUser = (d) => (d ? { id: String(d._id), clerkId: d.clerkId ?? null, email: d.email ?? null, name: d.name || '', savingsTarget: d.savingsTarget || 0 } : null);
 const asRow = (d) => { const { _id, userId, createdAt, ...rest } = d; return { id: String(_id), ...rest }; };
 const monthRange = (month) => ({ $gte: `${month}-01`, $lte: `${month}-31` });
 
@@ -18,8 +18,9 @@ async function connectMongo(uri, dbName = 'hisaab') {
   const moves = db.collection('vault_moves');
 
   await Promise.all([
-    // sparse + partialFilter: guests have no email, and many guests must not collide on "null".
+    // partialFilter: a user may have no email (or no clerkId yet), and many such users must not collide on "null".
     users.createIndex({ email: 1 }, { unique: true, partialFilterExpression: { email: { $type: 'string' } } }),
+    users.createIndex({ clerkId: 1 }, { unique: true, partialFilterExpression: { clerkId: { $type: 'string' } } }),
     entries.createIndex({ userId: 1, date: -1 }),
     budgets.createIndex({ userId: 1, category: 1 }, { unique: true }),
     moves.createIndex({ userId: 1, date: -1 }),
@@ -28,9 +29,10 @@ async function connectMongo(uri, dbName = 'hisaab') {
   return {
     kind: 'mongo',
 
-    async createUser({ email, name, passHash, guest }) {
-      const doc = { email: email || null, name: name || '', passHash: passHash || null, guest: !!guest, savingsTarget: 0, createdAt: new Date() };
+    async createUser({ clerkId, email, name }) {
+      const doc = { clerkId: clerkId || null, email: email || null, name: name || '', savingsTarget: 0, createdAt: new Date() };
       if (!doc.email) delete doc.email;
+      if (!doc.clerkId) delete doc.clerkId;
       try {
         const r = await users.insertOne(doc);
         return asUser({ ...doc, _id: r.insertedId });
@@ -39,6 +41,7 @@ async function connectMongo(uri, dbName = 'hisaab') {
         throw e;
       }
     },
+    async getUserByClerkId(clerkId) { return asUser(await users.findOne({ clerkId })); },
     async getUserByEmail(email) { return asUser(await users.findOne({ email })); },
     async getUserById(id) { const _id = oid(id); return _id ? asUser(await users.findOne({ _id })) : null; },
     async updateUser(id, patch) {

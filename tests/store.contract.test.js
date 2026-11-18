@@ -17,12 +17,15 @@ for (const [name, make] of factories) {
   test(`[${name}] store contract`, async () => {
     const s = await make();
     try {
-      const a = await s.createUser({ email: 'a@x.co', name: 'A', passHash: 'h', guest: false });
-      const g1 = await s.createUser({ email: null, name: 'Guest', passHash: null, guest: true });
-      const g2 = await s.createUser({ email: null, name: 'Guest', passHash: null, guest: true });
+      const a = await s.createUser({ clerkId: 'user_a', email: 'a@x.co', name: 'A' });
+      const g1 = await s.createUser({ clerkId: 'user_g1', email: null, name: 'G1' });
+      const g2 = await s.createUser({ clerkId: 'user_g2', email: null, name: 'G2' });
       assert.notEqual(g1.id, g2.id);
-      await assert.rejects(() => s.createUser({ email: 'a@x.co', name: 'Dup', passHash: 'h' }), { code: 'DUPLICATE' });
+      await assert.rejects(() => s.createUser({ clerkId: 'user_dup', email: 'a@x.co', name: 'Dup' }), { code: 'DUPLICATE' });
+      await assert.rejects(() => s.createUser({ clerkId: 'user_a', email: 'other@x.co', name: 'Dup' }), { code: 'DUPLICATE' });
       assert.equal((await s.getUserByEmail('a@x.co')).id, a.id);
+      assert.equal((await s.getUserByClerkId('user_a')).id, a.id);
+      assert.equal(await s.getUserByClerkId('user_nobody'), null);
       assert.equal(await s.getUserByEmail('nobody@x.co'), null);
       assert.equal((await s.getUserById(a.id)).name, 'A');
       assert.equal(await s.getUserById('not-an-id'), null);

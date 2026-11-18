@@ -5,7 +5,7 @@ Express + MongoDB. Every user has their own account and their own data.
 ## Run it
 
 ```
-cp .env.example .env      # then fill in MONGODB_URI and JWT_SECRET
+cp .env.example .env      # then fill in MONGODB_URI and CLERK_SECRET_KEY
 npm install
 npm start
 npm test                  # runs on an in-memory store, no database needed
@@ -13,7 +13,7 @@ npm test                  # runs on an in-memory store, no database needed
 
 MongoDB Atlas: Network Access must allow the server's address (Render's free plan has no fixed address,
 so Atlas needs `0.0.0.0/0`; keep the database password strong). On Render set `MONGODB_URI`, `MONGODB_DB`
-and `JWT_SECRET` as environment variables, never in the code.
+and `CLERK_SECRET_KEY` as environment variables, never in the code.
 
 ## Folder structure
 
@@ -29,8 +29,8 @@ backend/
       memory.js           in-memory store with the same methods (used by tests)
     middleware/           login guard, 404 and error handling
     routes/               one file per URL group: auth, entries, reports, budgets, settings, vault
-    services/             the real logic: passwords and tokens, savings vault, summaries, email
-    utils/                small helpers: errors, input checks, rate limiter
+    services/             the real logic: talking to Clerk, savings vault, summaries
+    utils/                small helpers: errors, input checks
   tests/                  run with `npm test`
   .env / .env.example     settings
 ```
@@ -39,12 +39,17 @@ A new feature usually means: a method in both `db/` files, logic in a `services/
 
 ## Accounts
 
+Sign-up, login, password reset and Google sign-in are handled by [Clerk](https://clerk.com). The app gets a Clerk session
+token and sends it as `Authorization: Bearer <token>`; this server checks it with `CLERK_SECRET_KEY`. The first time a
+Clerk user calls the API, a matching user row is created (email and name are copied from Clerk).
+
 | Method | Path | Purpose |
 | --- | --- | --- |
-| POST | `/auth/signup` | `{name, email, password}` (password 8+ characters) returns `{token, user}` |
-| POST | `/auth/login` | `{email, password}` returns `{token, user}` |
-| POST | `/auth/guest` | account without an email; no way to log back in later |
-| GET | `/auth/me` | who am I (needs token) |
+| GET | `/auth/me` | who am I |
+| DELETE | `/auth/me` | deletes the account, all its data and the Clerk login |
+| POST | `/api/import` | a guest's ledger (kept on the phone) sent once when they create an account |
+
+Guests have no server account: their ledger lives on the phone only.
 
 All `/api` routes need `Authorization: Bearer <token>` and only ever touch that user's rows.
 
@@ -67,10 +72,3 @@ All `/api` routes need `Authorization: Bearer <token>` and only ever touch that 
 ## Testing against real MongoDB
 
 `MONGODB_TEST_URI="mongodb+srv://..." npm test` also runs the store checks on a throwaway database.
-
-## Forgot password and Google sign-in
-
-- `POST /auth/forgot {email}` sends a 6-digit code (valid 15 min, 5 wrong tries then locked). `POST /auth/reset {email, code, password}` sets the new password and logs in.
-  Set `RESEND_API_KEY` to send real emails. Without it, the code is printed in this server's console.
-- `POST /auth/google {idToken}` needs `GOOGLE_CLIENT_IDS` (comma-separated OAuth client IDs). The app side needs
-  `npx expo install expo-auth-session expo-web-browser expo-crypto` and `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (plus Android/iOS ones) in `app/.env`.

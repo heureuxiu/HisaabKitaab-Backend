@@ -15,14 +15,14 @@ function createMemoryStore() {
   return {
     kind: 'memory',
 
-    async createUser({ email, name, passHash, guest }) {
-      if (email && [...users.values()].some((u) => u.email === email)) {
-        const e = new Error('duplicate'); e.code = 'DUPLICATE'; throw e;
-      }
-      const u = { id: newId(), email: email || null, name: name || '', passHash: passHash || null, guest: !!guest, savingsTarget: 0 };
+    async createUser({ clerkId, email, name }) {
+      const taken = [...users.values()].some((u) => (clerkId && u.clerkId === clerkId) || (email && u.email === email));
+      if (taken) { const e = new Error('duplicate'); e.code = 'DUPLICATE'; throw e; }
+      const u = { id: newId(), clerkId: clerkId || null, email: email || null, name: name || '', savingsTarget: 0 };
       users.set(u.id, u);
       return { ...u };
     },
+    async getUserByClerkId(clerkId) { const u = [...users.values()].find((x) => x.clerkId === clerkId); return u ? { ...u } : null; },
     async getUserByEmail(email) { const u = [...users.values()].find((x) => x.email === email); return u ? { ...u } : null; },
     async getUserById(id) { const u = users.get(id); return u ? { ...u } : null; },
     async updateUser(id, patch) {
